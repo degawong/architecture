@@ -12,8 +12,9 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: snickerbockers/submodules-init@v4
     # - uses: domdere/git-submodule-action@0.0.1
-    - uses: chris-short/github-action-git-submodules@v0.1.0
+    # - uses: chris-short/github-action-git-submodules@v0.1.0
     - uses: actions/cache@v2
       with:
         path: |
