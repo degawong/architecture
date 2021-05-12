@@ -1,0 +1,47 @@
+name: windows
+
+on: 
+  push
+  # workflow_dispatch
+
+env:
+  CONFIG: Debug
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: domdere/git-submodule-action@0.0.1
+    - uses: actions/cache@v2
+      with:
+        path: |
+          x86/*
+          x64/*
+        key: ${{ runner.os }}-x86-X64
+    - name: build-x86
+      working-directory: ${{github.workspace}}
+      run: |
+        cmake $env:GITHUB_WORKSPACE -T v142,host=x64 -A Win32 -B x86
+        cmake --build x86 --config $env:CONFIG -j 2
+    - name: build-x64
+      working-directory: ${{github.workspace}}
+      run: |
+        cmake $env:GITHUB_WORKSPACE -B x64
+        cmake --build x64 --config $env:CONFIG -j 2
+    - name: test-x86
+      working-directory: ${{github.workspace}}/x86
+      run: |
+        ctest -j6 -C Debug -T test --output-on-failure --extra-verbose
+    - name: test-x64
+      working-directory: ${{github.workspace}}/x64
+      run: |
+        ctest -j6 -C Debug -T test --output-on-failure --extra-verbose        
+    - name: artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: windows
+        retention-days: 90
+        path: |
+          x86/
+          x64/
