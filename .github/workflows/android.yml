@@ -1,0 +1,34 @@
+name: android
+on:
+  push
+  # workflow_dispatch
+
+jobs:
+  android:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: snickerbockers/submodules-init@v4
+      - name: create && start avd
+        run: |
+          echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-25;default;x86_64'
+          echo "no" | $ANDROID_HOME/tools/bin/avdmanager create avd -n ci_avd -k 'system-images;android-25;default;x86_64' --force
+      - name: start emulator
+        run: |
+          $ANDROID_HOME/emulator/emulator -list-avds
+          nohup $ANDROID_HOME/emulator/emulator -avd ci_avd -no-snapshot -no-window -no-audio > /dev/null 2>&1 &
+      - name: build algorithm
+        run: |
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Debug -DANDROID_ABI=x86_64 -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=16 -B android
+          cmake --build android --target all
+      - name: connect avd device 
+        run: |
+          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 5; done; input keyevent 82'
+          $ANDROID_HOME/platform-tools/adb devices
+          $ANDROID_HOME/platform-tools/adb shell getprop ro.product.cpu.abi
+      - name: push to device
+        working-directory: ${{github.workspace}}/android
+        run: |
+          adb push test /data/local/tmp/
+          adb shell find /data/local/tmp/test -maxdepth 2 -exec chmod +x {} \\\;
+          adb shell find /data/local/tmp/test -name "*_test" -maxdepth 2 -exec {} \\\;
